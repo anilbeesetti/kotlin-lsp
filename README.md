@@ -17,9 +17,10 @@ For each candidate the workflow:
    checksum, and obtains JetBrains' distribution checksum over HTTPS.
 2. Downloads the Apple Silicon macOS distribution, checks its checksum, applies
    the patches with zero fuzz, and compiles the replacement modules using JDK 21.
-3. Runs the importer contract tests and real LSP probes against an isolated
+3. Runs importer contracts, generates selected variants’ resource classes with
+   Koda’s guard against source compilation, and runs real LSP probes against an isolated
    Android fixture, including both `demoDebug` and `fullDebug`, Compose completion,
-   definitions, references, rename and diagnostics.
+   definitions, references, rename, active-file preparation and diagnostics.
 4. Packages the modified server with its bundled Java, patch sources, licenses
    and provenance. It uploads all assets to a draft before publishing the release.
 

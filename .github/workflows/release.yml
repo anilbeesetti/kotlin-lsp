@@ -132,13 +132,12 @@ jobs:
           mkdir -p build/fixture
           cp -R fixtures/android-ide/. build/fixture/
           printf 'sdk.dir=%s\n' "$ANDROID_HOME" > build/fixture/local.properties
-          /bin/sh build/fixture/gradlew -p build/fixture :mobile:generateDemoDebugResources :mobile:generateFullDebugResources --no-daemon --no-configuration-cache
           for variant in demoDebug fullDebug; do
             python3 script/test-kotlin-lsp \
               --project build/fixture --server "$SERVER/bin/intellij-server" \
               --java-home "$JAVA_HOME" --expected-release "$EXPECTED_RELEASE" \
               --variant "$variant" --output "build/reports/$variant" \
-              --timeout 600 --require-compose --require-original-sources --prepare-active-file
+              --timeout 600 --require-compose --require-original-sources --prepare-active-file --generate-resources
           done
       - name: Package validated server
         env:
@@ -151,7 +150,11 @@ jobs:
           name: validation-evidence
           path: |
             plan.json
-            build/reports/
+            build/reports/**/results.json
+            build/reports/**/wire.jsonl
+            build/reports/**/stderr.log
+            build/reports/**/resource-generation.log
+            build/reports/**/logs/
           retention-days: 14
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:

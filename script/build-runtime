@@ -19,14 +19,14 @@ from release import PATCH_REVISION, read_plan
 
 REPOSITORY = Path(__file__).resolve().parent.parent
 DEPENDENCIES = Path(os.environ.get("KODA_TOOL_DEPENDENCIES", REPOSITORY / "target/android-ide/dependencies"))
-OFFICIAL_VERSION = "263.4702.0"
-OFFICIAL_REVISION = OFFICIAL_VERSION + "+android-8"
-OFFICIAL_SHA256 = "95da3fc6d3b9092c7616345044a05edb85e5408dc648d081e4e433595c892bec"
+OFFICIAL_VERSION = "263.6379.0"
+OFFICIAL_REVISION = OFFICIAL_VERSION + "+" + PATCH_REVISION
+OFFICIAL_SHA256 = "ebef2e13cd4adc4ec9e04084b848000a3ec7a9d2917c64f269574ce2efe9ecad"
 OFFICIAL_ARCHIVE = f"kotlin-server-{OFFICIAL_VERSION}-aarch64.sit"
 OFFICIAL_URL = f"https://download.jetbrains.com/language-server/kotlin-server/{OFFICIAL_VERSION}/{OFFICIAL_ARCHIVE}"
 OFFICIAL_INSTALLATION = DEPENDENCIES / f"kotlin-lsp-{OFFICIAL_REVISION}"
 SOURCE_URL = f"https://codeload.github.com/Kotlin/kotlin-lsp/tar.gz/refs/tags/kotlin-lsp/v{OFFICIAL_VERSION}"
-SOURCE_SHA256 = "d44788a0649ca0ee68a7c37a1fc1225b690020670ce20d84cc999b0855539060"
+SOURCE_SHA256 = "660daf85563dd33d5cbe24e1cb3f9a4fd537af012be9fc8de165580c21fecc16"
 PATCHES = REPOSITORY / "patches"
 OFFICIAL_MODEL_MODULE = "plugins/kotlin.lsp/lib/modules/language-server.workspace-import.jar"
 OFFICIAL_JAVA_MODULE = "plugins/java-base.lsp/lib/modules/language-server.api.features.impl.java-base.jar"
@@ -211,7 +211,7 @@ def patch_official(distribution, temporary):
                                  "workspace-import/src/com/jetbrains/ls/imports/gradle/GradleWorkspaceImporter.kt"]),
         (OFFICIAL_JAVA_MODULE, ["features-impl/java-base/src/com/jetbrains/ls/api/features/impl/javaBase/LSJavaBaseLanguageConfiguration.kt"]),
         (OFFICIAL_COMMON_MODULE, ["features-impl/common/src/com/jetbrains/ls/api/features/impl/common/processors/LSRenameProcessor.kt"]),
-        (OFFICIAL_KOTLIN_MODULE, ["features-impl/kotlin/src/com/jetbrains/ls/api/features/impl/kotlin/apiImpl/LLFirSessionCacheStorageComponent.kt",
+        (OFFICIAL_KOTLIN_MODULE, ["features-impl/kotlin/src/com/jetbrains/ls/api/features/impl/kotlin/apiImpl/KotlinFirCacheImpl.kt",
                                   "features-impl/kotlin/src/com/jetbrains/ls/api/features/impl/kotlin/configuration/LSKotlinLanguageConfiguration.kt",
                                   str(navigation.resolve())]),
         (OFFICIAL_FIR_MODULE, ["zed-completion/LLFirSoftLazyValue.kt"]),

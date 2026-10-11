@@ -15,7 +15,7 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parent.parent
 UPSTREAM = "Kotlin/kotlin-lsp"
-PATCH_REVISION = "android-8"
+PATCH_REVISION = "android-9"
 PLATFORM = "macos-aarch64"
 VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
 DIGEST = re.compile(r"[0-9a-f]{64}")

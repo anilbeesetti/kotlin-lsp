@@ -38,9 +38,9 @@ existing Koda nightlies still embed their original runtime pin.
 
 The initial patches and compiler dependencies were copied from Koda commit
 `7e49ce60ae5da7173a18dff46e7fbf6ce4eafbdd` and target upstream `263.4702.0`.
-The `263.6379.0` source already changes some patched APIs: the initial patchset
-must be ported and the full macOS workflow must pass before the first usable
-release can be published. Automation attempts new upstream versions; it cannot
+The `android-9` patchset targets upstream `263.6379.0`, including its new FIR
+cache and workspace callback APIs. Pull requests run the full macOS build and
+Android probes before merge. Automation attempts new upstream versions; it cannot
 automatically repair incompatible source or binary APIs.
 
 Update the patch sources and compiler dependency pins together when necessary.

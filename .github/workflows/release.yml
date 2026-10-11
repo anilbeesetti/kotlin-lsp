@@ -38,7 +38,6 @@ jobs:
 
   detect:
     needs: checks
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -161,6 +160,7 @@ jobs:
 
   publish:
     needs: [detect, build]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

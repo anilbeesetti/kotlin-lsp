@@ -306,21 +306,28 @@
  import com.jetbrains.ls.imports.utils.fixMissingProjectSdk
  import kotlinx.coroutines.channels.Channel
  import kotlinx.coroutines.channels.SendChannel
-@@ -117,6 +129,9 @@
-                     projectDirectory,
-                     onUnresolvedDependency = { events.trySend(ImportEvent.UnresolvedDependency(it)) },
-                 ),
+@@ -123,6 +135,9 @@
+                 ignoreDuplicateLibsAndSdks = true,
+                 "GRADLE"
+             )
 +            val buildDirectories = gradleProjectData.includedProjects.flatMap { it.modules }
 +                .map { it.gradleProject.buildDirectory.toPath().toAbsolutePath().normalize() }
 +            markGeneratedSources(buildDirectories, sharedGeneratedSources(parameters, gradleProjectData))
-                 projectDirectory,
-                 entitySource,
-                 virtualFileUrlManager,
-@@ -150,6 +165,66 @@
+             fixMissingProjectSdk(parameters.options.javaHome ?: parameters.defaultSdkPath, virtualFileUrlManager)
+         }
+     }
+@@ -150,6 +165,7 @@
              .prepareForExecution()
              .configureEnvironment(parameters.options.environment)
              .configureSystemProperties(parameters.options.systemProperties)
 +
+             .addInitScripts(initScripts)
+             .forTasks(emptyList())
+
+@@ -163,3 +179,62 @@
+         return syncResultHandler.getSyncResult()
+     }
+ }
 +
 +private fun MutableEntityStorage.markGeneratedSources(buildDirectories: List<Path>, sharedSources: Map<Path, Boolean>) {
 +    for (sourceRoot in entities<SourceRootEntity>().toList()) {
@@ -380,9 +387,6 @@
 +    }
 +    return result
 +}
-             .addInitScripts(initScripts)
-             .forTasks(emptyList())
-
 --- a/features-impl/common/src/com/jetbrains/ls/api/features/impl/common/processors/LSRenameProcessor.kt
 +++ b/features-impl/common/src/com/jetbrains/ls/api/features/impl/common/processors/LSRenameProcessor.kt
 @@ -3,6 +3,7 @@

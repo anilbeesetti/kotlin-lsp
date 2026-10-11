@@ -138,7 +138,7 @@ jobs:
               --project build/fixture --server "$SERVER/bin/intellij-server" \
               --java-home "$JAVA_HOME" --expected-release "$EXPECTED_RELEASE" \
               --variant "$variant" --output "build/reports/$variant" \
-              --timeout 600 --require-compose --require-original-sources
+              --timeout 600 --require-compose --require-original-sources --prepare-active-file
           done
       - name: Package validated server
         env:

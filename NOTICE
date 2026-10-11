@@ -1,7 +1,7 @@
 Koda Kotlin language server build tooling and Android patches
 
 Initial patches, compiler recipe, protocol probe, importer contract tests and
-Android fixture copied from anilbeesetti/koda at
+Android resource-generation guard and fixture copied from anilbeesetti/koda at
 7e49ce60ae5da7173a18dff46e7fbf6ce4eafbdd.
 Their existing copyright and license notices are retained. See LICENSE-APACHE
 and LICENSE-GPL for the source repository's license texts.

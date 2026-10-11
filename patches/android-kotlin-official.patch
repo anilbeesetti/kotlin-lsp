@@ -208,18 +208,39 @@
  private class LinkApplicationAndroidResourcesTaskReflection(val project: Project, val reflected: Reflected.Instance) {
 --- a/workspace-import/src/com/jetbrains/ls/imports/gradle/SourceSetDependencyResolver.kt
 +++ b/workspace-import/src/com/jetbrains/ls/imports/gradle/SourceSetDependencyResolver.kt
-@@ -148 +148,2 @@
+@@ -145,7 +145,8 @@
+
+     private fun populateDependenciesFromModuleDependencies() {
+         project.moduleDependencies.forEach { (moduleName, moduleDependencies) ->
 -            moduleDependencies.forEach { dependency ->
 +            // Gradle returns a set; unstable source-archive order otherwise invalidates an unchanged model.
 +            moduleDependencies.sortedWith(compareBy({ it.file.path }, { it.sources?.path })).forEach { dependency ->
-@@ -168 +169,3 @@
+                 dependencyFileIndex.add(dependency)
+                 projectLibraryIndex.add(moduleName, dependency)
+             }
+@@ -165,7 +166,9 @@
+
+         androidProject.dependencies.forEach { dependency ->
+             if (dependency is AndroidDependency.Library) {
 -                val libraryName = dependency.libraryName()
 +                val libraryName = dependency.libraryName().let { name ->
 +                    if (dependency.group == "android" && dependency.name == "r") "$name:${module.name}.${androidProject.activeVariant}" else name
 +                }
-@@ -194,0 +198 @@
+                 artifacts += dependency.classpath
+                 projectLibraryIndex.add(
+                     LibraryData(
+@@ -192,6 +195,7 @@
+                 dependency.classpath.forEach { artifactFile ->
+                     val targetProject = androidProjectsByBuildTreePath[dependency.projectPath] ?: return@forEach
+                     val targetProjectFqn = project.androidProjects.entries.firstOrNull { it.value == targetProject }?.key ?: return@forEach
 +                    artifacts += artifactFile
-@@ -259 +263 @@
+                     dependencyFileIndex.add(
+                         artifactFile,
+                         DependencyData.Module(
+@@ -256,4 +260,4 @@
+     }
+ }
+
 -private fun AndroidDependency.Library.libraryName(): String = "Gradle: $group:$name:$version"
 \ No newline at end of file
 +private fun AndroidDependency.Library.libraryName(): String = "Gradle: $group:$name:$version"
@@ -259,26 +280,54 @@
                  // if a user has some java support installed, then the hover results will be duplicated
 --- a/workspace-import/src/com/jetbrains/ls/imports/gradle/GradleWorkspaceImporter.kt
 +++ b/workspace-import/src/com/jetbrains/ls/imports/gradle/GradleWorkspaceImporter.kt
-@@ -7,0 +8,6 @@
+@@ -5,6 +5,12 @@
+
+ import com.intellij.openapi.diagnostic.logger
+ import com.intellij.openapi.project.Project
 +import com.intellij.java.workspace.entities.JavaSourceRootPropertiesEntity
 +import com.intellij.java.workspace.entities.javaSourceRoots
 +import com.intellij.platform.workspace.jps.entities.SourceRootEntity
 +import com.intellij.platform.workspace.jps.entities.modifySourceRootEntity
 +import com.intellij.platform.workspace.jps.serialization.impl.toPath
 +import com.intellij.platform.workspace.storage.entities
-@@ -31,0 +38,6 @@
+ import com.intellij.platform.workspace.storage.EntityStorage
+ import com.intellij.platform.workspace.storage.MutableEntityStorage
+ import com.intellij.platform.workspace.storage.impl.url.toVirtualFileUrl
+@@ -29,6 +35,12 @@
+ import com.jetbrains.ls.imports.gradle.util.GradleSyncResultHandler
+ import com.jetbrains.ls.imports.json.JsonWorkspaceImporter.postProcessWorkspaceData
+ import com.jetbrains.ls.imports.json.importWorkspaceData
 +import kotlinx.serialization.json.Json
 +import kotlinx.serialization.json.JsonArray
 +import kotlinx.serialization.json.JsonObject
 +import kotlinx.serialization.json.JsonPrimitive
 +import kotlinx.serialization.json.booleanOrNull
 +import kotlinx.serialization.json.contentOrNull
-@@ -119,0 +132,3 @@
+ import com.jetbrains.ls.imports.utils.fixMissingProjectSdk
+ import kotlinx.coroutines.channels.Channel
+ import kotlinx.coroutines.channels.SendChannel
+@@ -123,6 +135,9 @@
+                 ignoreDuplicateLibsAndSdks = true,
+                 "GRADLE"
+             )
 +            val buildDirectories = gradleProjectData.includedProjects.flatMap { it.modules }
 +                .map { it.gradleProject.buildDirectory.toPath().toAbsolutePath().normalize() }
 +            markGeneratedSources(buildDirectories, sharedGeneratedSources(parameters, gradleProjectData))
-@@ -152,0 +168,60 @@
+             fixMissingProjectSdk(parameters.options.javaHome ?: parameters.defaultSdkPath, virtualFileUrlManager)
+         }
+     }
+@@ -150,6 +165,7 @@
+             .prepareForExecution()
+             .configureEnvironment(parameters.options.environment)
+             .configureSystemProperties(parameters.options.systemProperties)
 +
+             .addInitScripts(initScripts)
+             .forTasks(emptyList())
+
+@@ -163,3 +179,62 @@
+         return syncResultHandler.getSyncResult()
+     }
+ }
 +
 +private fun MutableEntityStorage.markGeneratedSources(buildDirectories: List<Path>, sharedSources: Map<Path, Boolean>) {
 +    for (sourceRoot in entities<SourceRootEntity>().toList()) {
@@ -348,56 +397,80 @@
  import com.intellij.openapi.util.Ref
  import com.intellij.psi.PsiCompiledElement
  import com.intellij.psi.PsiDocumentManager
-@@ -266,7 +267,9 @@
+@@ -265,7 +266,7 @@
              val target = context.target
              if (!target.isValid) return null
              val primaryElement = RenamePsiElementProcessor.forElement(target).substituteElementToRename(target, null) ?: target
 -            if (primaryElement is PsiCompiledElement) {
-+            if (primaryElement is PsiCompiledElement || primaryElement.containingFile?.virtualFile?.let {
-+                    ProjectFileIndex.getInstance(target.project).isInGeneratedSources(it)
-+                } == true) {
++            if (!canRename(primaryElement)) {
                  throwLspError(RenameRequestType, "This element cannot be renamed", Unit, ErrorCodes.InvalidParams)
              }
-             return LSRenameProcessor(target.project, target, context.newName, false, false)
---- a/features-impl/kotlin/src/com/jetbrains/ls/api/features/impl/kotlin/apiImpl/LLFirSessionCacheStorageComponent.kt
-+++ b/features-impl/kotlin/src/com/jetbrains/ls/api/features/impl/kotlin/apiImpl/LLFirSessionCacheStorageComponent.kt
-@@ -40 +40,5 @@
--            is WorkspaceEvent.InvalidateFiles -> state.invalidate(event.files.toList(), AnalyzerContext.current.project)
-+            is WorkspaceEvent.InvalidateFiles -> {
-+                val files = event.files.toList()
-+                // Empty index publications must retain sessions still being prepared by concurrent readers.
-+                if (files.isEmpty()) state else state.invalidate(files, AnalyzerContext.current.project)
-+            }
+             return LSRenameProcessor(target.project, primaryElement, context.newName, false, false)
+@@ -274,7 +275,9 @@
+         /** Returns false when [target] resolves to a [PsiCompiledElement], which [create] rejects. */
+         fun canRename(target: PsiElement): Boolean {
+             val primaryElement = RenamePsiElementProcessor.forElement(target).substituteElementToRename(target, null) ?: target
+-            return primaryElement !is PsiCompiledElement
++            return primaryElement !is PsiCompiledElement && primaryElement.containingFile?.virtualFile?.let {
++                ProjectFileIndex.getInstance(primaryElement.project).isInGeneratedSources(it)
++            } != true
+         }
+
+         private fun classifyUsages(
 --- a/features-impl/kotlin/src/com/jetbrains/ls/api/features/impl/kotlin/configuration/LSKotlinLanguageConfiguration.kt
 +++ b/features-impl/kotlin/src/com/jetbrains/ls/api/features/impl/kotlin/configuration/LSKotlinLanguageConfiguration.kt
-@@ -1,0 +2,2 @@
+@@ -1,8 +1,14 @@
+ // Copyright 2000-2026 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 +@file:OptIn(EntityStorageInstrumentationApi::class)
 +
-@@ -5,0 +8,4 @@
+ package com.jetbrains.ls.api.features.impl.kotlin.configuration
+
+ import com.intellij.openapi.application.Application
+ import com.intellij.openapi.project.Project
 +import com.intellij.platform.workspace.storage.ImmutableEntityStorage
 +import com.intellij.platform.workspace.storage.MutableEntityStorage
 +import com.intellij.platform.workspace.storage.instrumentation.EntityStorageInstrumentationApi
 +import com.intellij.platform.workspace.storage.instrumentation.MutableEntityStorageInstrumentation
-@@ -60,0 +67,2 @@
+ import com.intellij.psi.PsiComment
+ import com.jetbrains.analyzer.api.AnalyzerFileSystems
+ import com.jetbrains.analyzer.bootstrap.AnalyzerContainerBuilder
+@@ -61,6 +67,8 @@
+ val LSKotlinLanguageConfiguration: LSConfigurationPiece = LSConfigurationPiece(
+     entries = listOf(
+         WorkspaceComponentEntry { KotlinWorkspaceComponent },
 +        WorkspaceComponentEntry { KotlinPreparationComponent },
 +        KotlinNavigationPreparation,
-@@ -118,0 +127 @@
+         KotlinFirCacheEntry { KotlinFirCacheImpl.new() },
+         LSKotlinOrganizeImportsCodeActionProvider,
+         LSKotlinCompletionProvider,
+@@ -119,14 +127,25 @@
+
+ private data class KotlinWorkspaceState(
+     val caches: KotlinWorkspaceModelCaches? = null,
 +    val entities: ImmutableEntityStorage? = null,
-@@ -127,2 +136,12 @@
--            is WorkspaceEvent.WorkspaceModelChanged ->
--                KotlinWorkspaceState(createKotlinWorkspaceModelCaches(AnalyzerContext.current.project))
-+            is WorkspaceEvent.WorkspaceModelChanged -> {
-+                val current = event.workspaceModel.entityStore
-+                // Re-import can publish the same model while active-file analysis is still populating these caches.
-+                val unchanged = state.entities?.let { previous ->
-+                    val comparison = MutableEntityStorage.from(previous)
-+                    comparison.replaceBySource({ true }, current)
-+                    (comparison as MutableEntityStorageInstrumentation).hasSameEntities()
-+                } ?: false
-+                if (unchanged) state else KotlinWorkspaceState(
-+                    createKotlinWorkspaceModelCaches(AnalyzerContext.current.project), current
-+                )
-+            }
+ )
+
+ private object KotlinWorkspaceComponent : WorkspaceComponent<KotlinWorkspaceState> {
+     override fun init(configData: LSConfigurationData): KotlinWorkspaceState =
+         KotlinWorkspaceState()
+
+-    override fun workspaceModelChanged(workspaceModel: WorkspaceModelSnapshot, state: KotlinWorkspaceState): KotlinWorkspaceState =
+-        KotlinWorkspaceState(createKotlinWorkspaceModelCaches(AnalyzerContext.current.project))
++    override fun workspaceModelChanged(workspaceModel: WorkspaceModelSnapshot, state: KotlinWorkspaceState): KotlinWorkspaceState {
++        val current = workspaceModel.entityStore
++        // Re-import can publish the same model while active-file analysis is still populating these caches.
++        val unchanged = state.entities?.let { previous ->
++            val comparison = MutableEntityStorage.from(previous)
++            comparison.replaceBySource({ true }, current)
++            (comparison as MutableEntityStorageInstrumentation).hasSameEntities()
++        } ?: false
++        return if (unchanged) state else KotlinWorkspaceState(
++            createKotlinWorkspaceModelCaches(AnalyzerContext.current.project), current
++        )
++    }
+
+     override suspend fun registerInApplicationContainer(
+         builder: AnalyzerContainerBuilder,
 --- /dev/null
 +++ b/zed-completion/LLFirSoftLazyValue.kt
 @@ -0,0 +1,24 @@
@@ -730,7 +803,10 @@
 +}
 --- a/workspace-import/gradle-plugin/src/com/jetbrains/ls/imports/gradle/utils/androidReflection.kt
 +++ b/workspace-import/gradle-plugin/src/com/jetbrains/ls/imports/gradle/utils/androidReflection.kt
-@@ -62,19 +62,2 @@
+@@ -59,25 +59,8 @@
+         reflected.call("getNestedComponents")?.unwrapAs<Collection<*>>()?.mapNotNull { source ->
+             if (source == null) return@mapNotNull null
+
 -            runCatching {
 -                val hostTestClass = Class.forName("com.android.build.api.variant.HostTest", true, source.javaClass.classLoader)
 -                if (hostTestClass.isInstance(source)) {
@@ -752,7 +828,13 @@
 -            null
 +            // All nested components expose the same source/configuration API, including legacy tests and fixtures.
 +            AndroidNestedComponentReflection(project, source.reflected)
-@@ -140 +123,2 @@
+         }
+     }
+ }
+@@ -137,4 +120,5 @@
+ }
+
+ class AndroidHostTestComponentReflection(project: Project, reflected: Reflected.Instance) : AndroidComponentReflection(project, reflected)
 -class AndroidDeviceTestComponentReflection(project: Project, reflected: Reflected.Instance) : AndroidComponentReflection(project, reflected)
 \ No newline at end of file
 +class AndroidDeviceTestComponentReflection(project: Project, reflected: Reflected.Instance) : AndroidComponentReflection(project, reflected)
@@ -823,7 +905,8 @@
                  listOfNotNull(mainComponent.name.takeIf { it != name }),
          /* hasUnresolvedDependencies = */false,
          /* javaSettings = */ javaSettings,
-@@ -105,3 +114,66 @@
+@@ -104,4 +113,67 @@
+ private fun KotlinCompileTaskReflection.resolveKotlinModule(): KotlinModule? {
      val instance = reflected.instance as? Task ?: return null
      return KotlinMetadataModelBuilder.readCompilerSettings(instance)
 -}
@@ -892,3 +975,20 @@
 +    // A Java-only Android test-fixtures component has no Kotlin compilation.
 +    return matches.singleOrNull()
 +}
+--- a/features-impl/kotlin/src/com/jetbrains/ls/api/features/impl/kotlin/apiImpl/KotlinFirCacheImpl.kt
++++ b/features-impl/kotlin/src/com/jetbrains/ls/api/features/impl/kotlin/apiImpl/KotlinFirCacheImpl.kt
+@@ -34,8 +34,12 @@
+     private val storage: LLFirSessionCacheStorage,
+ ) : KotlinFirCache {
+
+-    override fun invalidate(files: FileUrlList): KotlinFirCache =
+-        KotlinFirCacheImpl(storage.invalidate(files.toList(), AnalyzerContext.current.project))
++    override fun invalidate(files: FileUrlList): KotlinFirCache {
++        val changedFiles = files.toList()
++        // Empty index publications must retain sessions still being prepared by concurrent readers.
++        return if (changedFiles.isEmpty()) this
++        else KotlinFirCacheImpl(storage.invalidate(changedFiles, AnalyzerContext.current.project))
++    }
+
+     override fun dropCaches(): KotlinFirCache =
+         KotlinFirCacheImpl(newStorage())

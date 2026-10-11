@@ -11,10 +11,9 @@ import com.jetbrains.ls.api.core.project
 import com.jetbrains.ls.api.core.util.findVirtualFile
 import com.jetbrains.ls.api.features.commands.LSCommandDescriptor
 import com.jetbrains.ls.api.features.commands.LSCommandDescriptorProvider
-import com.jetbrains.ls.snapshot.api.impl.core.AnalyzerContextKind
+import com.jetbrains.analyzer.api.AnalyzerContextKind
 import com.jetbrains.ls.snapshot.api.impl.core.LSConfigurationData
 import com.jetbrains.ls.snapshot.api.impl.core.WorkspaceComponent
-import com.jetbrains.ls.snapshot.api.impl.core.WorkspaceEvent
 import com.jetbrains.lsp.implementation.LspHandlerContext
 import com.jetbrains.lsp.implementation.throwLspError
 import com.jetbrains.lsp.protocol.Commands.ExecuteCommand
@@ -49,7 +48,6 @@ internal class KotlinPreparationState {
 
 internal object KotlinPreparationComponent : WorkspaceComponent<KotlinPreparationState> {
     override fun init(configData: LSConfigurationData) = KotlinPreparationState()
-    override fun handleEvent(event: WorkspaceEvent, state: KotlinPreparationState) = state
     override suspend fun registerInApplicationContainer(
         builder: AnalyzerContainerBuilder, application: Application,
         state: KotlinPreparationState, contextKind: AnalyzerContextKind,

@@ -1,0 +1,59 @@
+// Copied from Koda 7e49ce60ae5da7173a18dff46e7fbf6ce4eafbdd; see NOTICE and LICENSE-GPL.
+initscript {
+    def server = System.getProperty('zed.android.kotlinServer')
+    if (server == null) throw new GradleException('Missing official Kotlin server for Android resource generation')
+    dependencies {
+        classpath files(new File(server, 'plugins/kotlin.lsp/lib/modules/language-server.workspace-import.gradle-plugin.jar'),
+            new File(server, 'plugins/kotlin/lib/intellij.libraries.kotlin.tooling.core.jar'))
+    }
+}
+com.jetbrains.ls.imports.gradle.model.builder.android.AndroidVariants.collectAndroidVariants(gradle)
+gradle.projectsEvaluated {
+    // AGP's metadata writer reads artifact identities, not class contents. Its explicit
+    // dependency builds those classes unnecessarily; transitive metadata inputs retain their dependencies.
+    rootProject.allprojects.each { project ->
+        project.tasks.configureEach { task ->
+            def type = task.class
+            while (type != null) {
+                if (type.name == 'com.android.build.gradle.internal.tasks.featuresplit.PackagedDependenciesWriterTask') {
+                    task.setDependsOn([])
+                    break
+                }
+                type = type.superclass
+            }
+        }
+    }
+    rootProject.tasks.register('zedAndroidKotlinGenerateSources') {
+        dependsOn(rootProject.allprojects.collectMany { project ->
+            com.jetbrains.ls.imports.gradle.model.builder.android.AndroidUtilsKt.selectedAndroidGenerationTasks(project)
+        })
+    }
+}
+gradle.taskGraph.whenReady { graph ->
+    def compilerTypes = [
+        'org.gradle.api.tasks.compile.AbstractCompile',
+        'org.gradle.api.tasks.compile.JavaCompile',
+        'org.jetbrains.kotlin.gradle.tasks.KotlinCompile',
+        'org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompile'
+    ] as Set
+    def compilers = graph.allTasks.findAll { task ->
+        def pending = [task.class]
+        def visited = [] as Set
+        boolean compiler = false
+        while (!pending.isEmpty()) {
+            def type = pending.remove(pending.size() - 1)
+            if (type != null && visited.add(type.name)) {
+                if (compilerTypes.contains(type.name)) {
+                    compiler = true
+                    break
+                }
+                if (type.superclass != null) pending.add(type.superclass)
+                pending.addAll(type.interfaces as List)
+            }
+        }
+        compiler
+    }.collect { it.path }.sort()
+    if (!compilers.isEmpty()) {
+        throw new GradleException('Android resource generation would compile project sources: ' + compilers.join(', ') + '. The resource task graph was not executed. Kotlin import can continue with generated symbols unavailable.')
+    }
+}

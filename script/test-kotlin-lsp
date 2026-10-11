@@ -1170,8 +1170,7 @@ def main():
     environment = selection_environment(os.environ, args.module, args.variant, shared_model)
     environment.update(JAVA_HOME=str(args.java_home), IJ_JAVA_OPTIONS=f"-Didea.config.path={output / 'config'} -Didea.log.path={output / 'logs'} -Dintellij.server.eula.persistence=false")
     if args.generate_resources:
-        setup = (Path(__file__).resolve().parent.parent / "crates/android_tools/src/kotlin.rs").read_text()
-        guard = setup.split('const RESOURCE_GENERATION_GUARD: &str = r#"', 1)[1].split('"#;', 1)[0]
+        guard = (Path(__file__).resolve().parent.parent / "patches/android-kotlin-generate.gradle").read_text()
         init = output / "resource-generation.gradle"
         init.write_text(guard)
         with (output / "resource-generation.log").open("w") as log:

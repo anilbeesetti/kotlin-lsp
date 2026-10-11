@@ -17,9 +17,10 @@ For each candidate the workflow:
    checksum, and obtains JetBrains' distribution checksum over HTTPS.
 2. Downloads the Apple Silicon macOS distribution, checks its checksum, applies
    the patches with zero fuzz, and compiles the replacement modules using JDK 21.
-3. Runs the importer contract tests and real LSP probes against an isolated
+3. Runs importer contracts, generates selected variants’ resource classes with
+   Koda’s guard against source compilation, and runs real LSP probes against an isolated
    Android fixture, including both `demoDebug` and `fullDebug`, Compose completion,
-   definitions, references, rename and diagnostics.
+   definitions, references, rename, active-file preparation and diagnostics.
 4. Packages the modified server with its bundled Java, patch sources, licenses
    and provenance. It uploads all assets to a draft before publishing the release.
 
@@ -38,9 +39,9 @@ existing Koda nightlies still embed their original runtime pin.
 
 The initial patches and compiler dependencies were copied from Koda commit
 `7e49ce60ae5da7173a18dff46e7fbf6ce4eafbdd` and target upstream `263.4702.0`.
-The `263.6379.0` source already changes some patched APIs: the initial patchset
-must be ported and the full macOS workflow must pass before the first usable
-release can be published. Automation attempts new upstream versions; it cannot
+The `android-9` patchset targets upstream `263.6379.0`, including its new FIR
+cache and workspace callback APIs. Pull requests run the full macOS build and
+Android probes before merge. Automation attempts new upstream versions; it cannot
 automatically repair incompatible source or binary APIs.
 
 Update the patch sources and compiler dependency pins together when necessary.

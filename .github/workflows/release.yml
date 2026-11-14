@@ -133,7 +133,7 @@ jobs:
           cp -R fixtures/android-ide/. build/fixture/
           printf 'sdk.dir=%s\n' "$ANDROID_HOME" > build/fixture/local.properties
           for variant in demoDebug fullDebug; do
-            python3 script/prepare-release-fixture build/fixture "$variant"
+            python3 script/prepare-release-fixture build/fixture "$variant" "$SERVER"
             python3 script/test-kotlin-lsp \
               --project build/fixture --server "$SERVER/bin/intellij-server" \
               --java-home "$JAVA_HOME" --expected-release "$EXPECTED_RELEASE" \

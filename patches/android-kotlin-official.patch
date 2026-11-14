@@ -525,7 +525,7 @@
 +}
 --- /dev/null
 +++ b/zed-completion/FirCompositeSymbolProvider.kt
-@@ -0,0 +1,100 @@
+@@ -0,0 +1,105 @@
 +/*
 + * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
 + * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
@@ -610,6 +610,11 @@
 +        callableProviders(packageFqName, name).forEach {
 +            it.getTopLevelPropertySymbolsTo(destination, packageFqName, name)
 +        }
++    }
++
++    @FirSymbolProviderInternals
++    override fun clearInsignificantCaches() {
++        providers.forEach { it.clearInsignificantCaches() }
 +    }
 +
 +    override fun hasPackage(fqName: FqName): Boolean {

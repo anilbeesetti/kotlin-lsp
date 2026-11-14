@@ -15,6 +15,8 @@ android {
         versionName = "1.0"
     }
 
+    sourceSets.getByName("main").java.srcDir("build/staticProbe")
+
     flavorDimensions += "edition"
     productFlavors {
         create("demo") {

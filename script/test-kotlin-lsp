@@ -558,9 +558,35 @@ def language_features(probe, source):
         uri = target.get("uri", target.get("targetUri"))
         selection = target.get("targetSelectionRange", target.get("range"))
         params = {"textDocument": {"uri": uri}, "position": selection["start"]}
+        if symbol == "BuildConfig":
+            probe.open_document(uri)
         renamed = probe.request("textDocument/rename", {**params, "newName": "probeMustNotRename"})
         edit = renamed.get("result") or {}
         probe.check("rename_protected_" + symbol, not edit.get("changes") and not edit.get("documentChanges"), renamed)
+        if symbol == "BuildConfig":
+            probe.check("generated_declaration_rename_rejected", renamed.get("error", {}).get("code") == -32602, renamed)
+            prepared = probe.request("textDocument/prepareRename", params)
+            probe.check("generated_declaration_prepare_rejected", prepared.get("error", {}).get("code") == -32602, prepared)
+
+
+    # A direct rename must be refused even when the client never prepares it.
+    params = {"textDocument": {"uri": probe.uri}, "position": position(source, source.rindex("BuildConfig") + 1)}
+    for method in ("rename", "prepareRename"):
+        response = probe.request("textDocument/" + method, {**params, **({"newName": "MustNotRenameGenerated"} if method == "rename" else {})})
+        probe.check("generated_usage_" + method + "_rejected", response.get("error", {}).get("code") == -32602, response)
+    if probe.results.get("shared_model"):
+        static = probe.root / "mobile/build/staticProbe/dev/zed/androidsample/StaticProbe.java"
+        probe.check("shared_static_fixture_exists", static.is_file(), str(static))
+        if static.is_file():
+            uri = static.as_uri()
+            probe.open_document(uri)
+            original = probe.document_text(uri)
+            params = {"textDocument": {"uri": uri}, "position": position(original, original.index("StaticProbe") + 1)}
+            prepared = probe.request("textDocument/prepareRename", params)
+            probe.check("shared_static_prepare_rename", bool(prepared.get("result")) and not prepared.get("error"), prepared)
+            renamed = probe.request("textDocument/rename", {**params, "newName": "RenamedStaticProbe"})
+            edit = renamed.get("result") or {}
+            probe.check("shared_static_rename", not renamed.get("error") and "RenamedStaticProbe" in json.dumps(edit), renamed)
 
 
 def compose_features(probe, source):

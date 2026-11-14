@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+"""Register a non-generated source under build/ to test shared-model precedence."""
+import json
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1]).resolve()
+variant = sys.argv[2]
+source = root / "mobile/build/staticProbe/dev/zed/androidsample/StaticProbe.java"
+source.parent.mkdir(parents=True, exist_ok=True)
+source.write_text("package dev.zed.androidsample; public class StaticProbe {}\n")
+records = []
+for project, kind, selected in [("mobile", "application", variant), ("greeting", "library", "debug")]:
+    sources = [{"path": str(root / "mobile/build/staticProbe"), "kind": "java", "generated": False}] if project == "mobile" else []
+    records.append({"project": ":" + project, "directory": str(root / project), "kind": kind,
+                    "variant": selected, "components": [{"sources": sources}]})
+(root / "shared-model.json").write_text(json.dumps(records, indent=2) + "\n")

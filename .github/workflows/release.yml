@@ -34,7 +34,7 @@ jobs:
       - run: python3 -m unittest discover -s tests -v
       - run: python3 script/test-kotlin-lsp --self-test
       - name: Check Python syntax
-        run: python3 -m py_compile script/release.py script/build-runtime script/test-kotlin-lsp script/test-android-kotlin-importer
+        run: python3 -m py_compile script/release.py script/build-runtime script/test-kotlin-lsp script/test-android-kotlin-importer script/prepare-release-fixture
 
   detect:
     needs: checks
@@ -133,10 +133,11 @@ jobs:
           cp -R fixtures/android-ide/. build/fixture/
           printf 'sdk.dir=%s\n' "$ANDROID_HOME" > build/fixture/local.properties
           for variant in demoDebug fullDebug; do
+            python3 script/prepare-release-fixture build/fixture "$variant" "$SERVER"
             python3 script/test-kotlin-lsp \
               --project build/fixture --server "$SERVER/bin/intellij-server" \
               --java-home "$JAVA_HOME" --expected-release "$EXPECTED_RELEASE" \
-              --variant "$variant" --output "build/reports/$variant" \
+              --shared-model build/fixture/shared-model.json --variant "$variant" --output "build/reports/$variant" \
               --timeout 600 --require-compose --require-original-sources --prepare-active-file --generate-resources
           done
       - name: Package validated server

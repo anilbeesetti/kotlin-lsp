@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+"""Export a real selected-variant model with an ordinary source under build/."""
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+root = Path(sys.argv[1]).resolve()
+variant = sys.argv[2]
+server = Path(sys.argv[3]).resolve()
+source = root / "mobile/build/staticProbe/dev/zed/androidsample/StaticProbe.java"
+source.parent.mkdir(parents=True, exist_ok=True)
+source.write_text("package dev.zed.androidsample; public class StaticProbe {}\n")
+init = root / "release-model.gradle"
+guard = (Path(__file__).resolve().parent.parent / "patches/android-kotlin-generate.gradle").read_text()
+init.write_text(guard + r'''
+gradle.projectsEvaluated {
+    rootProject.tasks.register('writeReleaseProbeModel') {
+        dependsOn('zedAndroidKotlinGenerateSources')
+        doLast {
+            def records = rootProject.allprojects.collectMany { project ->
+                def variants = com.jetbrains.ls.imports.gradle.model.builder.android.AndroidVariants.getAndroidVariants(project)
+                if (!variants) return []
+                def selected = com.jetbrains.ls.imports.gradle.model.builder.android.AndroidUtilsKt.selectActiveVariant(variants)
+                def components = ([selected] + (selected.nestedComponents ?: [])).collect { component ->
+                    def sources = ['java', 'kotlin', 'resources'].collectMany { kind ->
+                        def directories = component.sources?."$kind"?.get() ?: []
+                        directories.collect { directory ->
+                            def path = directory.asFile.canonicalFile.toPath()
+                            def build = project.layout.buildDirectory.get().asFile.canonicalFile.toPath()
+                            def ordinary = project.file('build/staticProbe').canonicalFile.toPath()
+                            [path: path.toString(), kind: kind, generated: path.startsWith(build) && !path.startsWith(ordinary)]
+                        }
+                    }
+                    [name: component.name, sources: sources]
+                }
+                [[project: project.path, directory: project.projectDir.canonicalPath,
+                  kind: project.plugins.hasPlugin('com.android.application') ? 'application' : 'library',
+                  variant: selected.name, components: components]]
+            }
+            rootProject.file('shared-model.json').text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(records))
+        }
+    }
+}
+''')
+environment = dict(os.environ)
+for key in ('LSP_ANDROID_MODEL', 'LSP_ANDROID_VARIANTS'):
+    environment.pop(key, None)
+environment.update(LSP_ANDROID_MODULE=':mobile', LSP_ANDROID_VARIANT=variant)
+subprocess.run(['/bin/sh', './gradlew', '--init-script', str(init),
+                '-Dzed.android.kotlinServer=' + str(server), 'writeReleaseProbeModel',
+                '--no-configuration-cache', '--console=plain'], cwd=root, env=environment, check=True, timeout=180)

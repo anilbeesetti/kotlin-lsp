@@ -43,7 +43,9 @@ The `android-9` patchset targets upstream `263.6379.0`, including its new FIR
 cache and workspace callback APIs. The `android-10` patchset targets upstream
 `271.2085.0`, moving generated-source registration into `GradleTool` and guarding
 rename requests through `LSRenameProviderBase`. Explicit shared-model source
-flags override upstream build-directory inference. Pull requests run the full macOS build and
+flags override upstream build-directory inference. The old protocol JSON override
+is retired because upstream now emits compact JSON and provides separate decoding
+and pretty-printing configurations. Pull requests run the full macOS build and
 Android probes before merge. Automation attempts new upstream versions; it cannot
 automatically repair incompatible source or binary APIs.
 

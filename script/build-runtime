@@ -36,7 +36,6 @@ OFFICIAL_FIR_MODULE = "plugins/kotlin/lib/intellij.libraries.kotlinc.low.level.a
 OFFICIAL_FIR_PROVIDERS_MODULE = "plugins/kotlin/lib/intellij.libraries.kotlinc.kotlin.compiler.fir.jar"
 OFFICIAL_COMPLETION_API_MODULE = "plugins/kotlin/lib/intellij.libraries.kotlinc.analysis.api.k2.jar"
 OFFICIAL_COMPLETION_MODULE = "plugins/kotlin/lib/modules/intellij.kotlin.completion.impl.jar"
-OFFICIAL_PROTOCOL_MODULE = "lib/fleet.lsp.protocol.jar"
 MAX_DOWNLOAD_BYTES = 2 * 1024**3
 DOWNLOAD_SECONDS = 900
 
@@ -111,8 +110,7 @@ def validate_official_patch(installation):
     expected_modules = {name: hashlib.sha256((server / name).read_bytes()).hexdigest()
                         for name in (OFFICIAL_MODEL_MODULE, OFFICIAL_JAVA_MODULE, OFFICIAL_COMMON_MODULE,
                                      OFFICIAL_FIR_MODULE, OFFICIAL_FIR_PROVIDERS_MODULE,
-                                     OFFICIAL_COMPLETION_API_MODULE, OFFICIAL_COMPLETION_MODULE,
-                                     OFFICIAL_PROTOCOL_MODULE)}
+                                     OFFICIAL_COMPLETION_API_MODULE, OFFICIAL_COMPLETION_MODULE)}
     if manifest.get("additional_modules") != expected_modules:
         raise RuntimeError(f"The Kotlin project model or Java refactoring patch has changed in {server}; preserve it and reinstall")
 
@@ -218,7 +216,6 @@ def patch_official(distribution, temporary):
         (OFFICIAL_FIR_PROVIDERS_MODULE, ["zed-completion/FirCompositeSymbolProvider.kt"]),
         (OFFICIAL_COMPLETION_API_MODULE, ["zed-completion/KaFirCompletionCandidateChecker.kt"]),
         (OFFICIAL_COMPLETION_MODULE, ["zed-completion/KotlinFirCompletionParameters.kt", "zed-completion/K2CompletionRunner.kt"]),
-        (OFFICIAL_PROTOCOL_MODULE, ["zed-completion/LSP.kt"]),
     ):
         patched_module = server / module_name
         module_classes = temporary / (patched_module.stem + "-classes")

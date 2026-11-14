@@ -794,38 +794,6 @@
                          performCompletion(completionContext, remainingSectionsQueue)
                      }
                  }
---- /dev/null
-+++ b/zed-completion/LSP.kt
-@@ -0,0 +1,29 @@
-+// Adapted from JetBrains/intellij-community@f21a5eeb8c857a3cb23ba35e0cacf44769c86e16, fleet/lsp.protocol/srcCommonMain/com/jetbrains/lsp/protocol/LSP.kt.
-+package com.jetbrains.lsp.protocol
-+
-+import kotlinx.serialization.json.Json
-+import kotlinx.serialization.builtins.serializer
-+
-+object LSP {
-+    val json: Json = Json {
-+        encodeDefaults = true
-+        explicitNulls = false
-+        ignoreUnknownKeys = true
-+        isLenient = true
-+        // Indentation increases completion transport and parsing work without changing JSON values.
-+        prettyPrint = false
-+        classDiscriminator = "kind"
-+    }
-+
-+    val ProgressNotificationType: NotificationType<ProgressParams> =
-+        NotificationType("$/progress", ProgressParams.serializer())
-+
-+    val CancelNotificationType: NotificationType<CancelParams> =
-+        NotificationType("$/cancelRequest", CancelParams.serializer())
-+
-+    val RegisterCapabilityRequestType: RequestType<RegistrationParams, Unit, Unit> =
-+        RequestType("client/registerCapability", RegistrationParams.serializer(), Unit.serializer(), Unit.serializer())
-+
-+    val UnregisterCapabilityRequestType: RequestType<UnregistrationParams, Unit, Unit> =
-+      RequestType("client/unregisterCapability", UnregistrationParams.serializer(), Unit.serializer(), Unit.serializer())
-+}
 --- a/workspace-import/gradle-plugin/src/com/jetbrains/ls/imports/gradle/utils/androidReflection.kt
 +++ b/workspace-import/gradle-plugin/src/com/jetbrains/ls/imports/gradle/utils/androidReflection.kt
 @@ -59,25 +59,8 @@

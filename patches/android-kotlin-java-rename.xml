@@ -1,0 +1,5 @@
+<!-- Native headless registrations from Kotlin LSP 271.2085.0's META-INF/JavaPlugin.xml. -->
+<headlessRenameSupportedLanguage language="JAVA"/>
+<headlessRenamePsiElementProcessor implementation="com.intellij.refactoring.rename.RenameJavaClassProcessor$HeadlessRenameJavaClassProcessor"/>
+<headlessRenamePsiElementProcessor implementation="com.intellij.refactoring.rename.RenameJavaMethodProcessor$HeadlessRenameJavaMethodProcessor" id="javamethod"/>
+<headlessRenamePsiElementProcessor implementation="com.intellij.refactoring.rename.RenameJavaVariableProcessor$HeadlessRenameJavaVariableProcessor" id="javaVariable"/>

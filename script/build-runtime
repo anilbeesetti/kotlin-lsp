@@ -125,6 +125,18 @@ def replace_jar_entries(module, replacements):
     patched.replace(module)
 
 
+
+def register_java_headless_rename(module):
+    descriptor_path = "META-INF/language-server/features/javaBase/lsApiJavaBaseImpl.xml"
+    with zipfile.ZipFile(module) as archive:
+        descriptor = archive.read(descriptor_path)
+    marker = b'<extensions defaultExtensionNs="com.intellij">'
+    if descriptor.count(marker) != 1 or b"headlessRename" in descriptor:
+        raise RuntimeError("Unexpected upstream Java rename descriptor; review native registrations")
+    registrations = (PATCHES / "android-kotlin-java-rename.xml").read_bytes()
+    replace_jar_entries(module, {descriptor_path: descriptor.replace(marker, marker + b"\n" + registrations)})
+
+
 def prepare_source(temporary):
     archive = download(
         f"kotlin-lsp-{OFFICIAL_VERSION}-source.tar.gz",
@@ -232,6 +244,8 @@ def patch_official(distribution, temporary):
                                              for path in module_classes.rglob("*.class")})
         if module_name != OFFICIAL_KOTLIN_MODULE:
             additional_modules[module_name] = hashlib.sha256(patched_module.read_bytes()).hexdigest()
+    register_java_headless_rename(server / OFFICIAL_JAVA_MODULE)
+    additional_modules[OFFICIAL_JAVA_MODULE] = hashlib.sha256((server / OFFICIAL_JAVA_MODULE).read_bytes()).hexdigest()
     compose = PATCHES / "android-kotlin-compose.kt"
     compose_classes = temporary / "compose-classes"
     compose_classes.mkdir()
